@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import Tuple, List
+from config import config
 from db import *
 import requests
 import os
@@ -58,11 +59,6 @@ def get_challenge(db: Session = Depends(get_db)) -> ChallengeResponse:
         created_at=chall.created_at
     )
 
-class AttestationCreate(BaseModel):
-    validator_index: int
-    signature: str
-
-
 class AttestationResponse(BaseModel):
     attestation_id: int
     validator_index: int
@@ -71,12 +67,18 @@ class AttestationResponse(BaseModel):
     created_at: int
 
 @app.post("/attestation")
-def create_attestation(attestation: AttestationCreate, db: Session = Depends(get_db)) -> AttestationResponse:
+def create_attestation(attestation: str, db: Session = Depends(get_db)) -> AttestationResponse:
+    validator_index = int(attestation.split("-")[0])
+    actual_sig = attestation.split("-")[-1]
+
+    if validator_index < 0 or validator_index >= len(config["xch_cold_keys"]):
+        raise HTTPException(status_code=400, detail="Invalid validator index")
+
     current_challenge = get_current_challenge(db)
     if not current_challenge:
         raise HTTPException(status_code=400, detail="No current challenge available")
     
-    db_attestation = get_attestation(db, attestation.validator_index, current_challenge.week)
+    db_attestation = get_attestation(db, validator_index, current_challenge.week)
     if db_attestation:
         raise HTTPException(status_code=400, detail="Attestation already exists for this challenge")
     
@@ -90,7 +92,7 @@ def create_attestation(attestation: AttestationCreate, db: Session = Depends(get
         validator_index=attestation.validator_index,
         signature=attestation.signature,
         week=attestation.week,
-        created_at=int(attestation.created_at.timestamp())
+        created_at=int(time.time())
     )
 
 
