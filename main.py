@@ -1,8 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
 from pydantic import BaseModel
+from typing import Tuple, List
 from db import *
+import requests
+import os
 
+load_dotenv()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -14,15 +19,26 @@ def get_db():
     finally:
         db.close()
 
-def get_weekly_challenge():
-    # Replace this with your actual logic to generate the challenge
-    return b'\x00' * 32, "no proof for PoC"
+def get_weekly_challenge() -> Tuple[str, str]:
+    chia_rpc_url = os.environ.get("CHIA_RPC_URL")
+    blockchain_state = requests.get(f"{chia_rpc_url}/get_blockchain_state").json()
+
+    peak_height = blockchain_state["blockchain_state"]["peak"]["height"]
+
+    block_record_one = requests.post(f"{chia_rpc_url}/get_block_record_by_height", json={"height": peak_height - 64}).json()
+    challenge_source_height = block_record_one["block_record"]["prev_transaction_block_height"]
+    
+    challenge_source = requests.post(f"{chia_rpc_url}/get_block_record_by_height", json={"height": challenge_source_height}).json()
+    challenge = challenge_source["block_record"]["header_hash"][2:]
+    proof = f"See https://xchscan.com/blocks/{challenge_source_height} or https://www.spacescan.io/block/{challenge_source_height} and check the header hash of block #{challenge_source_height}"
+    
+    return challenge, proof
 
 def get_current_challenge(db: Session) -> Challenge:
     current_challenge = get_most_recent_challenge(db)
     if not current_challenge or int(time.time()) - current_challenge.created_at >= 7 * 24 * 60 * 60:
         new_challenge, time_proof = get_weekly_challenge()
-        current_challenge = create_challenge(db, new_challenge.hex(), time_proof)
+        current_challenge = create_challenge(db, new_challenge, time_proof)
     return current_challenge
 
 
