@@ -67,12 +67,15 @@ class AttestationResponse(BaseModel):
     created_at: int
 
 @app.post("/attestation")
-def create_attestation(attestation: str, db: Session = Depends(get_db)) -> AttestationResponse:
+def create_attestation(attestation: str, chain_type: str, db: Session = Depends(get_db)) -> AttestationResponse:
     validator_index = int(attestation.split("-")[0])
     actual_sig = attestation.split("-")[-1]
 
     if validator_index < 0 or validator_index >= len(config["xch_cold_keys"]):
         raise HTTPException(status_code=400, detail="Invalid validator index")
+    
+    if chain_type not in ["evm", "chia"]:
+        raise HTTPException(status_code=400, detail="Invalid chain type")
 
     current_challenge = get_current_challenge(db)
     if not current_challenge:

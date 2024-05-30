@@ -24,6 +24,7 @@ class Attestation(Base):
     attestation_id = Column(Integer, primary_key=True, autoincrement=True)
     validator_index = Column(Integer, index=True)
     signature = Column(String)
+    chain_type = Column(String, index=True) # evm or chia
     week = Column(Integer, index=True)
     created_at = Column(Integer, index=True)
 
@@ -44,10 +45,11 @@ def create_challenge(db: Session, challenge: str, time_proof: str):
 def get_attestation(db: Session, validator_index: int, week: int) -> Challenge | None:
     return db.query(Attestation).filter_by(validator_index=validator_index, week=week).first()
 
-def create_attestation(db: Session, validator_index: int, signature: str, week: int) -> Attestation:
+def create_attestation(db: Session, validator_index: int, signature: str, chain_type: str, week: int) -> Attestation:
     db_attestation = Attestation(
         validator_index=validator_index,
         signature=signature,
+        chain_type=chain_type,
         week=week,
         created_at=int(time.time())
     )
@@ -57,5 +59,5 @@ def create_attestation(db: Session, validator_index: int, signature: str, week: 
     return db_attestation
 
 def get_attestations_last_7_weeks(db: Session) -> List[Attestation]:
-    seven_weeks_ago = int(time.time() - 7 * 24 * 60 * 60)
+    seven_weeks_ago = int(time.time() - 7 * 7 * 24 * 60 * 60)
     return db.query(Attestation).filter(Attestation.created_at >= seven_weeks_ago).all()
