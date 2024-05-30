@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from db import *
-import datetime
 from pydantic import BaseModel
+from db import *
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,9 +20,9 @@ def get_weekly_challenge():
 
 def get_current_challenge(db: Session) -> Challenge:
     current_challenge = get_most_recent_challenge(db)
-    if not current_challenge or (datetime.datetime.now(datetime.timezone.utc) - current_challenge.created_at).days >= 7:
+    if not current_challenge or int(time.time()) - current_challenge.created_at >= 7 * 24 * 60 * 60:
         new_challenge, time_proof = get_weekly_challenge()
-        current_challenge = create_challenge(db, new_challenge, time_proof)
+        current_challenge = create_challenge(db, new_challenge.hex(), time_proof)
     return current_challenge
 
 
@@ -40,7 +39,7 @@ def get_challenge(db: Session = Depends(get_db)) -> ChallengeResponse:
         week=chall.week,
         challenge=chall.challenge,
         time_proof=chall.time_proof,
-        created_at=int(chall.created_at)
+        created_at=chall.created_at
     )
 
 class AttestationCreate(BaseModel):
@@ -75,7 +74,7 @@ def create_attestation(attestation: AttestationCreate, db: Session = Depends(get
         validator_index=attestation.validator_index,
         signature=attestation.signature,
         week=attestation.week,
-        created_at=int(attestation.created_at)
+        created_at=int(attestation.created_at.timestamp())
     )
 
 

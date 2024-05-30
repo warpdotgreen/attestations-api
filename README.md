@@ -15,5 +15,5 @@ nano .env
 ## Run
 
 ```
-uvicorn app.main:app --reload
+uvicorn main:app --reload
 ```
