@@ -2,11 +2,13 @@ from chia.types.blockchain_format.sized_bytes import bytes32
 from chia.types.blockchain_format.program import Program
 from chia_rs import AugSchemeMPL, G1Element, G2Element
 from fastapi import FastAPI, Depends, HTTPException
+from eth_account.messages import encode_typed_data
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import Tuple, List
 from config import config
+from web3 import Web3
 from db import *
 import requests
 import os
@@ -85,6 +87,34 @@ def verifyChiaSig(
     return AugSchemeMPL.verify(pubkey, message_hash, sig)
 
 
+def verifyEthSig(
+    address: str,
+    validator_index: int,
+    signature: bytes,
+    challenge: bytes32
+) -> bool:
+    domain = {
+        "name": "warp.green Validator Attestations",
+        "version": "1"
+    }
+
+    types = {
+        "AttestationMessage": [
+            {"name": "challenge", "type": "bytes32"},
+            {"name": "validatorIndex", "type": "uint8"}
+        ]
+    }
+
+    recoveredAddress = Web3.eth.account.recover_message(
+        encode_typed_data(domain, types, {
+            "challenge": '0x' + challenge.hex(),
+            "validatorIndex": validator_index
+        }),
+        signature=signature
+    )
+
+    return recoveredAddress == address
+
 class AttestationResponse(BaseModel):
     attestation_id: int
     validator_index: int
@@ -116,7 +146,7 @@ def create_attestation(attestation: str, chain_type: str, db: Session = Depends(
     
     # verify signature
     if (
-        chain_type == "evm" and not verifyEthSig(config["eth_cold_keys"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge))
+        chain_type == "evm" and not verifyEthSig(config["eth_cold_addresses"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge))
     ) or not verifyChiaSig(config["xch_cold_keys"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge)):
         raise HTTPException(status_code=400, detail="Invalid signature")
     
