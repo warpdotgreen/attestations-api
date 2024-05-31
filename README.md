@@ -7,6 +7,7 @@ This API is used to manage validator attestations. Each week on Wednesday, a new
 ```bash
 python3 -m venv venv
 . ./venv/bin/activate
+pip install --extra-index-url https://pypi.chia.net/simple/ chia-dev-tools==1.2.6
 pip install -r requirements.txt
 cp .env.example .env
 nano .env

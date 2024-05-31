@@ -1,3 +1,6 @@
+from chia.types.blockchain_format.sized_bytes import bytes32
+from chia.types.blockchain_format.program import Program
+from chia_rs import AugSchemeMPL, G1Element, G2Element
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
@@ -59,6 +62,29 @@ def get_challenge(db: Session = Depends(get_db)) -> ChallengeResponse:
         created_at=chall.created_at
     )
 
+# https://github.com/warpdotgreen/cli/blob/master/commands/rekey.py#L480
+def get_attestation_message(
+    challenge: bytes32,
+    validator_index: int,
+) -> str:
+    return f"Validator #{validator_index} attests having access to their cold private XCH key by signing this message with the following challenge: {challenge.hex()}".encode()
+
+
+def verifyChiaSig(
+    public_key: bytes,
+    validator_index: int,
+    signature: bytes,
+    challenge: bytes32
+) -> bool:
+    message = get_attestation_message(challenge, validator_index)
+    message_hash: bytes32 = Program.to(message).get_tree_hash()
+
+    sig: G2Element = G2Element.from_bytes(signature)
+    pubkey: G1Element = G1Element.from_bytes(public_key)
+
+    return AugSchemeMPL.verify(pubkey, message_hash, sig)
+
+
 class AttestationResponse(BaseModel):
     attestation_id: int
     validator_index: int
@@ -88,8 +114,10 @@ def create_attestation(attestation: str, chain_type: str, db: Session = Depends(
     if db_attestation:
         raise HTTPException(status_code=400, detail="Attestation already exists for this challenge")
     
-    public_key = bytes.fromhex(config["xch_cold_keys"][validator_index])
-    if not verifySig(public_key, attestation.signature):
+    # verify signature
+    if (
+        chain_type == "evm" and not verifyEthSig(config["eth_cold_keys"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge))
+    ) or not verifyChiaSig(config["xch_cold_keys"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge)):
         raise HTTPException(status_code=400, detail="Invalid signature")
     
     attestation: Attestation = create_attestation(db, attestation.validator_index, attestation.signature, current_challenge.id)
