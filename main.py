@@ -118,6 +118,7 @@ def verifyEthSig(
 class AttestationResponse(BaseModel):
     attestation_id: int
     validator_index: int
+    chain_type: str
     signature: str
     week: int
     created_at: int
@@ -150,15 +151,23 @@ def create_attestation(attestation: str, chain_type: str, db: Session = Depends(
     ) or not verifyChiaSig(config["xch_cold_keys"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge)):
         raise HTTPException(status_code=400, detail="Invalid signature")
     
-    attestation: Attestation = create_attestation(db, attestation.validator_index, attestation.signature, current_challenge.id)
+    attestation: Attestation = create_attestation(db, validator_index, actual_sig.hex(), chain_type, current_challenge.week)
     return AttestationResponse(
         attestation_id=attestation.attestation_id,
         validator_index=attestation.validator_index,
+        chain_type=chain_type,
         signature=attestation.signature,
         week=attestation.week,
         created_at=int(time.time())
     )
 
+
+class WeekInfo(BaseModel):
+    week: int
+    challenge: ChallengeResponse
+    attestations: List[AttestationResponse]
+class OverviewResponse(BaseModel):
+    current_challenge: ChallengeResponse
 
 # @app.get("/overview")
 # def read_attestations(db: Session = Depends(get_db)) -> List[AttestationResponse]:
