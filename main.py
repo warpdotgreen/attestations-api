@@ -163,12 +163,50 @@ def create_attestation(attestation: str, chain_type: str, db: Session = Depends(
 
 
 class WeekInfo(BaseModel):
-    week: int
-    challenge: ChallengeResponse
+    week_name: str
+    challenge_info: ChallengeResponse | None
     attestations: List[AttestationResponse]
-class OverviewResponse(BaseModel):
-    current_challenge: ChallengeResponse
 
-# @app.get("/overview")
-# def read_attestations(db: Session = Depends(get_db)) -> List[AttestationResponse]:
-#     return get_attestations_last_7_weeks(db)
+class OverviewResponse(BaseModel):
+    week_infos: List[WeekInfo]
+
+@app.get("/overview")
+def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
+    current_challenge = get_current_challenge(db)
+
+    week_infos = []
+    challenges = get_challenges_last_7_weeks(db)
+    attestations = get_attestations_last_7_weeks(db)
+    for week_offest in range(7):
+        week = current_challenge.week - week_offest
+        if week < 1:
+            week_name = "Not Monitored"
+            week_infos.append(WeekInfo(
+                week_name=week_name,
+                challenge_info=None,
+                attestations=[]
+            ))
+            continue
+
+        week_name = f"Week {week}"
+        week_challenge = next((c for c in challenges if c.week == week), None)
+        week_attestations = [a for a in attestations if a.week == week]
+        week_infos.append(WeekInfo(
+            week_name=week_name,
+            challenge_info=ChallengeResponse(
+                week=week_challenge.week,
+                challenge=week_challenge.challenge,
+                time_proof=week_challenge.time_proof,
+                created_at=week_challenge.created_at
+            ),
+            attestations=[AttestationResponse(
+                attestation_id=a.attestation_id,
+                validator_index=a.validator_index,
+                chain_type=a.chain_type,
+                signature=a.signature,
+                week=a.week,
+                created_at=a.created_at
+            ) for a in week_attestations]
+        ))
+
+    return OverviewResponse(week_infos=week_infos)
