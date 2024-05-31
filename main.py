@@ -3,6 +3,7 @@ from chia.types.blockchain_format.program import Program
 from chia_rs import AugSchemeMPL, G1Element, G2Element
 from fastapi import FastAPI, Depends, HTTPException
 from eth_account.messages import encode_typed_data
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -17,6 +18,13 @@ load_dotenv()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
     db = SessionLocal()
