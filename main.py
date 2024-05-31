@@ -69,7 +69,10 @@ class AttestationResponse(BaseModel):
 @app.post("/attestation")
 def create_attestation(attestation: str, chain_type: str, db: Session = Depends(get_db)) -> AttestationResponse:
     validator_index = int(attestation.split("-")[0])
-    actual_sig = attestation.split("-")[-1]
+    try:
+        actual_sig = bytes.fromhex(attestation.split("-")[-1])
+    except:
+        raise HTTPException(status_code=400, detail="Invalid signature")
 
     if validator_index < 0 or validator_index >= len(config["xch_cold_keys"]):
         raise HTTPException(status_code=400, detail="Invalid validator index")
@@ -85,9 +88,9 @@ def create_attestation(attestation: str, chain_type: str, db: Session = Depends(
     if db_attestation:
         raise HTTPException(status_code=400, detail="Attestation already exists for this challenge")
     
-    # You need to implement verifySig logic here
-    # if not verifySig(public_key, attestation.signature):
-    #     raise HTTPException(status_code=400, detail="Invalid signature")
+    public_key = bytes.fromhex(config["xch_cold_keys"][validator_index])
+    if not verifySig(public_key, attestation.signature):
+        raise HTTPException(status_code=400, detail="Invalid signature")
     
     attestation: Attestation = create_attestation(db, attestation.validator_index, attestation.signature, current_challenge.id)
     return AttestationResponse(
