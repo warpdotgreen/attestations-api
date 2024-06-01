@@ -123,6 +123,10 @@ def verifyEthSig(
 
     return recoveredAddress == address
 
+class AttestationCreationRequest(BaseModel):
+    chain_type: str
+    attestation: str
+
 class AttestationResponse(BaseModel):
     attestation_id: int
     validator_index: int
@@ -132,7 +136,10 @@ class AttestationResponse(BaseModel):
     created_at: int
 
 @app.post("/attestation")
-def create_attestation(attestation: str, chain_type: str, db: Session = Depends(get_db)) -> AttestationResponse:
+def post_attestation(request: AttestationCreationRequest, db: Session = Depends(get_db)) -> AttestationResponse:
+    attestation = request.attestation
+    chain = request.chain_type
+
     validator_index = int(attestation.split("-")[0])
     try:
         actual_sig = bytes.fromhex(attestation.split("-")[-1])
@@ -142,7 +149,7 @@ def create_attestation(attestation: str, chain_type: str, db: Session = Depends(
     if validator_index < 0 or validator_index >= len(config["xch_cold_keys"]):
         raise HTTPException(status_code=400, detail="Invalid validator index")
     
-    if chain_type not in ["evm", "chia"]:
+    if chain not in ["evm", "chia"]:
         raise HTTPException(status_code=400, detail="Invalid chain type")
 
     current_challenge = get_current_challenge(db)
@@ -155,15 +162,25 @@ def create_attestation(attestation: str, chain_type: str, db: Session = Depends(
     
     # verify signature
     if (
-        chain_type == "evm" and not verifyEthSig(config["eth_cold_addresses"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge))
-    ) or not verifyChiaSig(config["xch_cold_keys"][validator_index], validator_index, actual_sig, bytes.fromhex(current_challenge.challenge)):
+        chain == "evm" and not verifyEthSig(
+            config["eth_cold_addresses"][validator_index],
+            validator_index,
+            actual_sig, 
+            bytes.fromhex(current_challenge.challenge)
+        )
+    ) or not verifyChiaSig(
+        bytes.fromhex(config["xch_cold_keys"][validator_index]),
+        validator_index,
+        actual_sig,
+        bytes.fromhex(current_challenge.challenge)
+    ):
         raise HTTPException(status_code=400, detail="Invalid signature")
     
-    attestation: Attestation = create_attestation(db, validator_index, actual_sig.hex(), chain_type, current_challenge.week)
+    attestation: Attestation = create_attestation(db, validator_index, actual_sig.hex(), chain, current_challenge.week)
     return AttestationResponse(
         attestation_id=attestation.attestation_id,
         validator_index=attestation.validator_index,
-        chain_type=chain_type,
+        chain_type=chain,
         signature=attestation.signature,
         week=attestation.week,
         created_at=int(time.time())
