@@ -42,8 +42,8 @@ def create_challenge(db: Session, challenge: str, time_proof: str):
     db.refresh(db_challenge)
     return db_challenge
 
-def get_attestation(db: Session, validator_index: int, week: int) -> Challenge | None:
-    return db.query(Attestation).filter_by(validator_index=validator_index, week=week).first()
+def get_attestation(db: Session, validator_index: int, week: int, chain_type: str) -> Challenge | None:
+    return db.query(Attestation).filter_by(validator_index=validator_index, week=week, chain_type=chain_type).first()
 
 def create_attestation(db: Session, validator_index: int, signature: str, chain_type: str, week: int) -> Attestation:
     db_attestation = Attestation(

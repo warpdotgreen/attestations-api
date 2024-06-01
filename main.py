@@ -156,7 +156,7 @@ def post_attestation(request: AttestationCreationRequest, db: Session = Depends(
     if not current_challenge:
         raise HTTPException(status_code=400, detail="No current challenge available")
     
-    db_attestation = get_attestation(db, validator_index, current_challenge.week)
+    db_attestation = get_attestation(db, validator_index, current_challenge.week, chain)
     if db_attestation:
         raise HTTPException(status_code=400, detail="Attestation already exists for this challenge")
     
