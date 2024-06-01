@@ -113,7 +113,8 @@ def verifyEthSig(
         ]
     }
 
-    recoveredAddress = Web3.eth.account.recover_message(
+    web3 = Web3()
+    recoveredAddress = web3.eth.account.recover_message(
         encode_typed_data(domain, types, {
             "challenge": '0x' + challenge.hex(),
             "validatorIndex": validator_index
@@ -163,7 +164,7 @@ def post_attestation(request: AttestationCreationRequest, db: Session = Depends(
     # verify signature
     if (
         chain == "evm" and not verifyEthSig(
-            config["eth_cold_addresses"][validator_index],
+            config["evm_cold_addresses"][validator_index],
             validator_index,
             actual_sig, 
             bytes.fromhex(current_challenge.challenge)
