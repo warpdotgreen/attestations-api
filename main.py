@@ -177,6 +177,8 @@ class WeekInfo(BaseModel):
 
 class OverviewResponse(BaseModel):
     week_infos: List[WeekInfo]
+    xch_pubkeys: List[str]
+    eth_addresses: List[str]
 
 @app.get("/overview")
 def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
@@ -188,7 +190,7 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
     for week_offest in range(7):
         week = current_challenge.week - week_offest
         if week < 1:
-            week_name = "Not Monitored"
+            week_name = "-"
             week_infos.append(WeekInfo(
                 week_name=week_name,
                 challenge_info=None,
@@ -196,7 +198,7 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
             ))
             continue
 
-        week_name = f"Week {week}"
+        week_name = f"Week #{week}"
         week_challenge = next((c for c in challenges if c.week == week), None)
         week_attestations = [a for a in attestations if a.week == week]
         week_infos.append(WeekInfo(
@@ -217,4 +219,8 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
             ) for a in week_attestations]
         ))
 
-    return OverviewResponse(week_infos=week_infos)
+    return OverviewResponse(
+        week_infos=week_infos,
+        xch_pubkeys=config["xch_cold_keys"],
+        eth_addresses=config["evm_cold_addresses"]
+    )
