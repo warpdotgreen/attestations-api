@@ -119,7 +119,7 @@ def verifyEthSig(
             "challenge": '0x' + challenge.hex(),
             "validatorIndex": validator_index
         }),
-        signature=signature
+        signature='0x' + signature.hex()
     )
 
     return recoveredAddress == address
@@ -169,11 +169,13 @@ def post_attestation(request: AttestationCreationRequest, db: Session = Depends(
             actual_sig, 
             bytes.fromhex(current_challenge.challenge)
         )
-    ) or not verifyChiaSig(
-        bytes.fromhex(config["xch_cold_keys"][validator_index]),
-        validator_index,
-        actual_sig,
-        bytes.fromhex(current_challenge.challenge)
+    ) or (
+        chain == "chia" and not verifyChiaSig(
+            bytes.fromhex(config["xch_cold_keys"][validator_index]),
+            validator_index,
+            actual_sig,
+            bytes.fromhex(current_challenge.challenge)
+        )
     ):
         raise HTTPException(status_code=400, detail="Invalid signature")
     
