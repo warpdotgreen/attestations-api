@@ -221,6 +221,7 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
         week_name = f"Week #{week}"
         week_challenge = next((c for c in challenges if c.week == week), None)
         week_attestations = [a for a in attestations if a.week == week]
+
         week_infos.append(WeekInfo(
             week_name=week_name,
             challenge_info=ChallengeResponse(
