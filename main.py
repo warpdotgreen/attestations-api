@@ -218,7 +218,7 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
             ))
             continue
 
-        week_name = f"Week #{week}-{week + 3}"
+        week_name = f"Weeks #{week}-{week + 3}"
         if week <= 12:
             week_name = f"Week #{week}"
         week_challenge = next((c for c in challenges if c.week == week), None)
