@@ -31,8 +31,9 @@ class Attestation(Base):
 def get_most_recent_challenge(db: Session):
     return db.query(Challenge).order_by(Challenge.created_at.desc()).first()
 
-def create_challenge(db: Session, challenge: str, time_proof: str):
+def create_challenge(db: Session, week: int, challenge: str, time_proof: str):
     db_challenge = Challenge(
+        week=week,
         challenge=challenge,
         time_proof=time_proof,
         created_at=int(time.time())
