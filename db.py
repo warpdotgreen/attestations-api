@@ -58,10 +58,11 @@ def create_attestation(db: Session, validator_index: int, signature: str, chain_
     db.refresh(db_attestation)
     return db_attestation
 
-def get_attestations_last_7_weeks(db: Session) -> List[Attestation]:
-    seven_weeks_ago = int(time.time() - 8 * 7 * 24 * 60 * 60)
-    return db.query(Attestation).filter(Attestation.created_at >= seven_weeks_ago).all()
+# no issue if we get a little bit more data
+def get_attestations_last_28_weeks(db: Session) -> List[Attestation]:
+    some_weeks_ago = int(time.time() - 32 * 7 * 24 * 60 * 60)
+    return db.query(Attestation).filter(Attestation.created_at >= some_weeks_ago).all()
 
-def get_challenges_last_7_weeks(db: Session) -> List[Challenge]:
-    seven_weeks_ago = int(time.time() - 8 * 7 * 24 * 60 * 60)
-    return db.query(Challenge).filter(Challenge.created_at >= seven_weeks_ago).all()
+def get_challenges_last_28_weeks(db: Session) -> List[Challenge]:
+    some_weeks_ago = int(time.time() - 32 * 7 * 24 * 60 * 60)
+    return db.query(Challenge).filter(Challenge.created_at >= some_weeks_ago).all()

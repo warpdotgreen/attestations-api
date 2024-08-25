@@ -33,7 +33,7 @@ def get_db():
     finally:
         db.close()
 
-def get_weekly_challenge() -> Tuple[str, str]:
+def get_challenge() -> Tuple[str, str]:
     chia_rpc_url = os.environ.get("CHIA_RPC_URL")
     blockchain_state = requests.get(f"{chia_rpc_url}/get_blockchain_state").json()
 
@@ -50,8 +50,8 @@ def get_weekly_challenge() -> Tuple[str, str]:
 
 def get_current_challenge(db: Session) -> Challenge:
     current_challenge = get_most_recent_challenge(db)
-    if not current_challenge or int(time.time()) - current_challenge.created_at >= 7 * 24 * 60 * 60:
-        new_challenge, time_proof = get_weekly_challenge()
+    if not current_challenge or int(time.time()) - current_challenge.created_at >= 28 * 24 * 60 * 60:
+        new_challenge, time_proof = get_challenge()
         current_challenge = create_challenge(db, new_challenge, time_proof)
     return current_challenge
 
@@ -205,8 +205,8 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
     current_challenge = get_current_challenge(db)
 
     week_infos = []
-    challenges = get_challenges_last_7_weeks(db)
-    attestations = get_attestations_last_7_weeks(db)
+    challenges = get_challenges_last_28_weeks(db)
+    attestations = get_attestations_last_28_weeks(db)
     for week_offest in range(7):
         week = current_challenge.week - week_offest
         if week < 1:
@@ -218,7 +218,9 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
             ))
             continue
 
-        week_name = f"Week #{week}"
+        week_name = f"Week #{week}-{week + 3}"
+        if week <= 12:
+            week_name = f"Week #{week}"
         week_challenge = next((c for c in challenges if c.week == week), None)
         week_attestations = [a for a in attestations if a.week == week]
 
