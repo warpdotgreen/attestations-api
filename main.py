@@ -35,7 +35,7 @@ def get_db():
 
 def get_period_challenge() -> Tuple[str, str]:
     chia_rpc_url = os.environ.get("CHIA_RPC_URL")
-    blockchain_state = requests.get(f"{chia_rpc_url}/get_blockchain_state").json()
+    blockchain_state = requests.post(f"{chia_rpc_url}/get_blockchain_state").json()
 
     peak_height = blockchain_state["blockchain_state"]["peak"]["height"]
 
