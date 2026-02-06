@@ -251,3 +251,37 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
         xch_pubkeys=config["xch_cold_keys"],
         eth_addresses=config["evm_cold_addresses"]
     )
+
+
+@app.get("/notifications")
+def get_notifications(db: Session = Depends(get_db)) -> dict[int, str]:
+    current_challenge = get_current_challenge(db)
+    
+    # If challenge is less than 14 days old, no notifications needed
+    fourteen_days_seconds = 14 * 24 * 60 * 60
+    challenge_age = int(time.time()) - current_challenge.created_at
+    
+    notifications = {}
+    for validator_index in range(11):  # 0 to 10 inclusive
+        validator_index = str(validator_index)
+        if challenge_age < fourteen_days_seconds:
+            notifications[validator_index] = ""
+            continue
+        
+        # Check for attestations
+        xch_attestation = get_attestation(db, validator_index, current_challenge.week, "chia")
+        evm_attestation = get_attestation(db, validator_index, current_challenge.week, "evm")
+        
+        has_xch = xch_attestation is not None
+        has_evm = evm_attestation is not None
+        
+        if has_xch and has_evm:
+            notifications[validator_index] = ""
+        elif not has_xch and not has_evm:
+            notifications[validator_index] = "Missing XCH and EVM attestation(s)"
+        elif not has_xch:
+            notifications[validator_index] = "Missing XCH attestation(s)"
+        else:
+            notifications[validator_index] = "Missing EVM attestation(s)"
+    
+    return notifications
